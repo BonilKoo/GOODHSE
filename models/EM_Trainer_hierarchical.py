@@ -126,8 +126,9 @@ class EM_EDNIL_Trainer_IL_hier:
     def train_IL_hier(self, train_loader, valid_loader, test_loader, args, env_model, wandb=None):        
 
         is_irm = self.irm_p > 0
-        best_val_perf, best_epoch = 0, 0
+        best_val_perf, best_epoch = -1, 0
         test_perf, best_test_perf = 0, 0
+        best_test_metric = dict()
 
         for epoch in range(args.IL_epochs):
             self.model.train()
@@ -137,8 +138,10 @@ class EM_EDNIL_Trainer_IL_hier:
 
             self.model.eval()
             # validation
-            val_perf = self.test(valid_loader, args, env_model)
-            test_perf = self.test(test_loader, args, env_model)
+#             val_perf = self.test(valid_loader, args, env_model)
+            val_perf, val_res_metric = self.test(valid_loader, args, env_model)
+#             test_perf = self.test(test_loader, args, env_model)
+            test_perf, test_res_metric = self.test(test_loader, args, env_model)
             if val_perf < best_val_perf:
                 cnt += epoch >= args.pretrain
             else:
@@ -146,6 +149,7 @@ class EM_EDNIL_Trainer_IL_hier:
                 best_val_perf = val_perf
                 best_epoch = epoch
                 best_test_perf = test_perf
+                best_test_metric = test_res_metric
         
             if epoch >= args.pretrain and cnt >= args.early_stopping:
                 print("Early stopping at epoch {}.".format(epoch))
@@ -154,7 +158,8 @@ class EM_EDNIL_Trainer_IL_hier:
                 else:
                     print("ERM is done.")
                 break
-        return best_test_perf,best_val_perf, best_epoch
+#         return best_test_perf,best_val_perf, best_epoch
+        return best_test_perf,best_val_perf, best_epoch, best_test_metric
     
     @torch.no_grad()
     def test(self, loader, args, env_model):

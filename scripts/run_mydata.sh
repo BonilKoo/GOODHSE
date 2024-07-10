@@ -1,35 +1,36 @@
 #!/bin/bash
 
 export device=$1
-export dataset=$2
+# export dataset=$2
+export dataset='mydata'
 export project_name='240516_reproduce'
 
-if [ $dataset = 'icassay' ]
-then
-    export DATASET='drugood_lbap_core_ic50_assay'
-elif [ $dataset = 'icscaffold' ]
-then
-    export DATASET='drugood_lbap_core_ic50_scaffold'
-elif [ $dataset = 'icsize' ]
-then
-    export DATASET='drugood_lbap_core_ic50_size'
-elif [ $dataset = 'ecassay' ]
-then
-    export DATASET='drugood_lbap_core_ec50_assay'
-elif [ $dataset = 'ecscaffold' ]
-then
-    export DATASET='drugood_lbap_core_ec50_scaffold'
-elif [ $dataset = 'ecsize' ]
-then
-    export DATASET='drugood_lbap_core_ec50_size'
-fi
+# if [ $dataset = 'icassay' ]
+# then
+#     export DATASET='drugood_lbap_core_ic50_assay'
+# elif [ $dataset = 'icscaffold' ]
+# then
+#     export DATASET='drugood_lbap_core_ic50_scaffold'
+# elif [ $dataset = 'icsize' ]
+# then
+#     export DATASET='drugood_lbap_core_ic50_size'
+# elif [ $dataset = 'ecassay' ]
+# then
+#     export DATASET='drugood_lbap_core_ec50_assay'
+# elif [ $dataset = 'ecscaffold' ]
+# then
+#     export DATASET='drugood_lbap_core_ec50_scaffold'
+# elif [ $dataset = 'ecsize' ]
+# then
+#     export DATASET='drugood_lbap_core_ec50_size'
+# fi
 
 export BATCH_SIZE=(32 128)
 export EI_LR=(1e-3)
 export IL_LR=(1e-4 5e-4)
-export EMB_DIM=(128 300)
+export EMB_DIM=(64 128 300)
 export EI_NUM_LAYERS=(1)
-export IL_NUM_LAYERS=(4 5)
+export IL_NUM_LAYERS=(3 4 5)
 export EARLY_STOPPING=(20)
 export DROPOUT=(0.5)
 export IRM_P=(0.01 0.001)
@@ -40,11 +41,14 @@ export IL_EPOCHS=(100)
 export R=(0.8 0.6)
 export model='gin'
 export pooling='sum'
-export eval_metric='auc'
-export num_envs=-1
+# export eval_metric='auc'
+export eval_metric='mat'
+# export num_envs=-1
+export num_envs=30
 export il_cls='linear'
 export irm_opt='ednil_EI_last_hier_ed_contrast_me_consist_stochastic_240516'
 
+for split in {0..9}; do
 
 for batch_size in "${BATCH_SIZE[@]}"; do
 for ei_lr in "${EI_LR[@]}"; do
@@ -61,14 +65,18 @@ for ei_last_hierarchy in "${EI_LAST_HIER[@]}"; do
 for ei_epochs in "${EI_EPOCHS[@]}"; do
 for il_epochs in "${IL_EPOCHS[@]}"; do
     export log_dir=logs/$irm_opt/
-    export output_file=$dataset-bs_$batch_size-emb_$emb_dim-ratio_$r-illr_$il_lr-ilnl_$il_num_layers-pt_$early_stopping-dr_$dropout-irm_p_$irm_p-nh_$num_hierarchy-ei_$ei_last_hierarchy-cls-$il_cls-pool_$pooling-model_$model*
+    export output_file=$dataset-bs_$batch_size-emb_$emb_dim-ratio_$r-illr_$il_lr-ilnl_$il_num_layers-pt_$early_stopping-dr_$dropout-irm_p_$irm_p-nh_$num_hierarchy-ei_$ei_last_hierarchy-cls-$il_cls-pool_$pooling-model_$model
     echo $log_dir$output_file
     if [[ ! -f $log_dir$output_file ]]; then
         echo "start training $output_file"
-        python main_EM_ednil_hierarchical_consistent_stochastic.py \
+        python main_EM_ednil_hierarchical_consistent_stochastic_mydata.py \
         --wbproject_name $project_name \
         --device $device \
-        --dataset $DATASET \
+        --root mydata \
+        --dataset mydata \
+        --train_dataset /data/project/bonil/gc_MPS/data/SSM/random_${split}_train.csv \
+        --val /data/project/bonil/gc_MPS/data/SSM/random_${split}_test.csv \
+        --test_dataset /data/project/bonil/gc_MPS/data/SSM/random_${split}_test.csv \
         --batch_size $batch_size \
         --EI_lr $ei_lr \
         --IL_lr $il_lr \
@@ -105,4 +113,6 @@ done
 done
 done
 done
+done
+
 done

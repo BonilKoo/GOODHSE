@@ -40,8 +40,71 @@ def return_configs(args):
 
     return cfg
 
+def make_mydata_json(args, train, val, test):
+    
+    with open('mydata/template_mydata.json', 'r') as f:
+        template = f.readlines()
 
+    template.pop()
+    template.append('\t"split": {\n') #
 
+    template.append('\t\t"train": [\n') ##
+    for idx in train.index:
+        row = train.loc[idx]
+        smi = row['SMILES']
+        reg_label = row['IC50']
+        cls_label = row['label']
+        template.append('\t\t\t{\n')
+        template.append(f'\t\t\t\t"smiles": "{smi}",\n')
+        template.append(f'\t\t\t\t"reg_label": {reg_label},\n')
+        template.append(f'\t\t\t\t"cls_label": {cls_label},\n')
+        template.append(f'\t\t\t\t"domain_id": 0\n')
+        if idx != train.index[-1]:
+            template.append('\t\t\t},\n')
+        else:
+            template.append('\t\t\t}\n')
+    template.append("\t\t],\n") ##
+
+    template.append('\t\t"iid_val": [\n') ##
+    for idx in val.index:
+        row = val.loc[idx]
+        smi = row['SMILES']
+        reg_label = row['IC50']
+        cls_label = row['label']
+        template.append('\t\t\t{\n')
+        template.append(f'\t\t\t\t"smiles": "{smi}",\n')
+        template.append(f'\t\t\t\t"reg_label": {reg_label},\n')
+        template.append(f'\t\t\t\t"cls_label": {cls_label},\n')
+        template.append(f'\t\t\t\t"domain_id": 0\n')
+        if idx != val.index[-1]:
+            template.append('\t\t\t},\n')
+        else:
+            template.append('\t\t\t}\n')
+    template.append("\t\t],\n") ##
+
+    template.append('\t\t"iid_test": [\n') ##
+    for idx in test.index:
+        row = test.loc[idx]
+        smi = row['SMILES']
+        reg_label = row['IC50']
+        cls_label = row['label']
+        template.append('\t\t\t{\n')
+        template.append(f'\t\t\t\t"smiles": "{smi}",\n')
+        template.append(f'\t\t\t\t"reg_label": {reg_label},\n')
+        template.append(f'\t\t\t\t"cls_label": {cls_label},\n')
+        template.append(f'\t\t\t\t"domain_id": 0\n')
+        if idx != test.index[-1]:
+            template.append('\t\t\t},\n')
+        else:
+            template.append('\t\t\t}\n')
+    template.append("\t\t]\n") ##
+
+    template.append("\t}\n") #
+
+    template.append("}\n")
+    
+    with open(f'{args.root}/{args.dataset}.json', 'w') as f:
+        f.write(''.join(template))
 
 def main():
     parser = argparse.ArgumentParser(description='Causality Inspired Invariant Graph LeArning')
@@ -49,12 +112,19 @@ def main():
     parser.add_argument('--device', default=1, type=int, help='cuda device')
     parser.add_argument('--root', default='./data', type=str, help='directory for datasets.')
     parser.add_argument('--dataset', default='drugood_lbap_core_ic50_assay', type=str)
+    
+    parser.add_argument('--train_dataset', type=str)
+    parser.add_argument('--val_dataset', type=str)
+    parser.add_argument('--test_dataset', type=str)
+    parser.add_argument('--col_smiles', type=str, default='SMILES')
+    parser.add_argument('--col_reg', type=str, default='IC50')
+    parser.add_argument('--col_cls', type=str, default='label')
 
     # training config
     parser.add_argument('--batch_size', default=128, type=int, help='batch size')
     parser.add_argument('--EI_lr', default=1e-3, type=float, help='learning rate for the EI')
     parser.add_argument('--IL_lr', default=1e-4, type=float, help='learning rate for the IL')
-    parser.add_argument('--seed', nargs='?', default='[1,2,3,4,5]', help='random seed')
+    parser.add_argument('--seed', nargs='?', default='[42]', help='random seed')
     parser.add_argument('--pretrain', default=20, type=int, help='pretrain epoch before early stopping')
 
     # model config
@@ -115,16 +185,29 @@ def main():
         train_dataset = DrugOOD(root=root, dataset=build_dataset(cfg.data.train), name=args.dataset, mode="train")
         val_dataset = DrugOOD(root=root, dataset=build_dataset(cfg.data.ood_val), name=args.dataset, mode="ood_val")
         test_dataset = DrugOOD(root=root, dataset=build_dataset(cfg.data.ood_test), name=args.dataset, mode="ood_test")
-        if args.eval_metric == 'auc':
-            args.evaluator = Evaluator('ogbg-molhiv')
-            args.eval_metric = 'rocauc'
-        else:
-            args.evaluator = Evaluator('ogbg-ppa')
-        args.edge_dim=10
-        args.input_dim=39
-        train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
-        valid_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
-        test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
+    else:
+        cfg = return_configs(args)
+        root = args.root
+        train_dataset = pd.read_csv(args.train_dataset)
+        val_dataset = pd.read_csv(args.val_dataset)
+        test_dataset = pd.read_csv(args.test_dataset)
+        make_mydata_json(args, train_dataset, val_dataset, test_dataset)
+        train_dataset = DrugOOD(root=root, dataset=build_dataset(cfg.data.train), name=args.dataset, mode="train")
+        val_dataset = DrugOOD(root=root, dataset=build_dataset(cfg.data.iid_val), name=args.dataset, mode="ood_val")
+        test_dataset = DrugOOD(root=root, dataset=build_dataset(cfg.data.iid_test), name=args.dataset, mode="ood_test")
+    
+    if args.eval_metric == 'auc':
+        args.evaluator = Evaluator('ogbg-molhiv')
+        args.eval_metric = 'rocauc'
+    elif args.eval_metric == 'mat':
+        args.evaluator = Evaluator('ogbg-molhiv')
+    else:
+        args.evaluator = Evaluator('ogbg-ppa')
+    args.edge_dim=10
+    args.input_dim=39
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
+    valid_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)        
 
     # log
     datetime_now = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -168,6 +251,8 @@ def main():
         return log_dir, fname
 
     log_test_perf = []
+    split = args.train_dataset.split('/')[-1].split('_')[1] #####
+#     split = args.train_dataset.split('/')[-1].split('_')[0][-1] #####
 
     for seed in args.seed:
         log_dir, log_name = make_log(args, seed)
@@ -219,7 +304,8 @@ def main():
         env_model.eval()
 
         print(f'[INFO] START training on main IL model')
-        best_test_perf, best_val_perf, best_epoch = il_trainer.train_IL_hier(train_loader, valid_loader, test_loader, args, env_model, wandb=wandb)
+#         best_test_perf, best_val_perf, best_epoch = il_trainer.train_IL_hier(train_loader, valid_loader, test_loader, args, env_model, wandb=wandb)
+        best_test_perf, best_val_perf, best_epoch, best_test_metric = il_trainer.train_IL_hier(train_loader, valid_loader, test_loader, args, env_model, wandb=wandb)
         # torch.save(il_trainer.model.state_dict(), os.path.join(exp_dir, 'il_seed{}.pt'.format(seed)))
 
         # print('[INFO] EVALUATING the main model...')
@@ -230,12 +316,15 @@ def main():
         logger.info("Last: Test_perf: {:.4f} Val_perf:{:.4f} ".format(best_test_perf, best_val_perf))
         logger.info("=" * 50)
         log_test_perf.append(best_test_perf)
+        if args.eval_metric == 'rocauc' or args.eval_metric == 'mat':
+            pd.DataFrame(best_test_metric, index=['value']).T.to_csv(f'{exp_dir}/result_split_{split}_bs_{args.batch_size}_ILlr_{args.IL_lr}_embdim_{args.emb_dim}_ILnlayers_{args.IL_num_layers}_irmP_{args.irm_p}_R_{args.r}.csv') #####
+            print(pd.DataFrame(best_test_metric, index=['value']).T)
 
     result = pd.DataFrame(log_test_perf).T
     result.columns = [f'seed_{i}' for i in args.seed]
     result['mean'] = result.mean(axis=1)
     result['std'] = result.std(axis=1)
-    result.to_csv(os.path.join(exp_dir, 'result.csv'), sep='\t', index=False)
+#     result.to_csv(os.path.join(exp_dir, 'result.csv'), sep='\t', index=False)
 
     log_test_perf = torch.tensor(log_test_perf)
     logger.info("Mean: {} Std: {}".format(torch.mean(log_test_perf), torch.std(log_test_perf)))

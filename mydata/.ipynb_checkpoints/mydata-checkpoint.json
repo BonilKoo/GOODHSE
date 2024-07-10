@@ -1,0 +1,75 @@
+{
+    "cfg": {
+        "path": {
+            "task": {
+                "type": "lbap",
+                "subset": "lbap_core_ic50_assay"
+            },
+            "source_root": "/mnt/nas2/home/zengkaipeng/raw_data/chembl_29_sqlite/chembl_29.db",
+            "target_root": "/mnt/nas2/home/zengkaipeng/work/tc-ood/data/"
+        },
+        "uncertainty": {
+            "delta": {
+                "<": -1,
+                "<=": -1,
+                ">": 1,
+                ">=": 1
+            }
+        },
+        "classification_threshold": {
+            "lower_bound": 4,
+            "upper_bound": 6,
+            "fix_value": 5
+        },
+        "fractions": {
+            "train_fraction_ood": 0.6,
+            "val_fraction_ood": 0.2,
+            "iid_train_sample_fractions": 0.6,
+            "iid_val_sample_fractions": 0.2
+        },
+        "noise_filter": {
+            "assay": {
+                "measurement_type": ["IC50"],
+                "assay_value_units": ["nM", "uM"],
+                "molecules_number": [50, 3000],
+                "confidence_score": 9
+            },
+            "sample": {
+                "filter_none": [],
+                "smile_exist": [],
+                "smile_legal": [],
+                "value_relation": ["=", "~"]
+            }
+        },
+        "domain": {
+            "domain_generate_field": "assay_id",
+            "domain_name": "assay",
+            "sort_func": "domain_capacity",
+            "sort_order": "descend",
+            "protein_family_level": 1
+        }
+    },
+    "statistics": {
+        "thr_for_cls": 5,
+        "positive_samples": 83802,
+        "negative_samples": 11434,
+        "positive_rate": 0.8799403586878911,
+        "train domain number": 311,
+        "val domain number": 314,
+        "test domain number": 699,
+        "train datapoints": 34179,
+        "ood_val datapoints": 19028,
+        "ood_test datapoints": 19032,
+        "iid_val datapoints": 11314,
+        "iid_test datapoints": 11683
+    },
+}
+    "split": {
+        "train": [
+            {
+                "smiles": "CC(C)(C)n1nc(Cc2ccc(Cl)cc2)cc1Oc1ccc(S(=O)(=O)Nc2nccs2)cc1F",
+                "reg_label": 5.7,
+                "assay_id": 938986,
+                "cls_label": 1,
+                "domain_id": 559
+            },

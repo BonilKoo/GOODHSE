@@ -3,7 +3,8 @@ import numpy as np
 
 import random
 from texttable import Texttable
-from sklearn.metrics import matthews_corrcoef
+# from sklearn.metrics import matthews_corrcoef
+from sklearn.metrics import matthews_corrcoef, accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 from torch_geometric.nn import global_mean_pool
 import torch.nn.functional as F
 
@@ -68,6 +69,10 @@ def eval_model(model, device, loader, evaluator, env_model=None, eval_metric='ac
     model.eval()
     y_true = []
     y_pred = []
+    if eval_metric == 'rocauc':
+        y_pred_label = []
+    elif eval_mteric == 'mat':
+        y_prob = []
 
     for batch in loader:
         batch = batch.to(device)
