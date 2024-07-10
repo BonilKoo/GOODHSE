@@ -71,7 +71,7 @@ def eval_model(model, device, loader, evaluator, env_model=None, eval_metric='ac
     y_pred = []
     if eval_metric == 'rocauc':
         y_pred_label = []
-    elif eval_metric == 'mat':
+    elif eval_metric in ['acc', 'mat']:
         y_prob = []
 
     for batch in loader:
@@ -84,6 +84,7 @@ def eval_model(model, device, loader, evaluator, env_model=None, eval_metric='ac
                 pred = preds[0]
             is_labeled = batch.y == batch.y
             if eval_metric == 'acc':
+                y_prob.append(F.softmax(pred, dim=-1)[:, 1].unsqueeze(-1).detach().view(-1, 1).cpu())
                 if len(batch.y.size()) == len(batch.y.size()):
                     y_true.append(batch.y.view(-1, 1).detach().cpu())
                     y_pred.append(torch.argmax(pred.detach(), dim=1).view(-1, 1).cpu())
@@ -95,15 +96,18 @@ def eval_model(model, device, loader, evaluator, env_model=None, eval_metric='ac
                 if len(batch.y.size()) == len(batch.y.size()):
                     y_true.append(batch.y.view(-1, 1).detach().cpu())
                     y_pred.append(pred.detach().view(-1, 1).cpu())
+                    y_pred_label.append(torch.argmax(pred.detach(), dim=1).view(-1, 1).cpu())
                 else:
                     y_true.append(batch.y.unsqueeze(-1).detach().cpu())
                     y_pred.append(pred.unsqueeze(-1).detach().cpu())
+                    y_pred_label.append(y_pred.append(pred.argmax(-1).unsqueeze(-1).detach().cpu()))
             elif eval_metric == 'mat':
                 y_true.append(batch.y.unsqueeze(-1).detach().cpu())
                 y_pred.append(pred.argmax(-1).unsqueeze(-1).detach().cpu())
-            elif eval_metric == 'ap':
-                y_true.append(batch.y.view(pred.shape).detach().cpu())
-                y_pred.append(pred.detach().cpu())
+                y_prob.append(F.softmax(pred, dim=-1)[:, 1].unsqueeze(-1).detach().view(-1, 1).cpu())
+#             elif eval_metric == 'ap':
+#                 y_true.append(batch.y.view(pred.shape).detach().cpu())
+#                 y_pred.append(pred.detach().cpu())
             else:
                 if is_labeled.size() != pred.size():
                     with torch.no_grad():
@@ -123,14 +127,42 @@ def eval_model(model, device, loader, evaluator, env_model=None, eval_metric='ac
 
     y_true = torch.cat(y_true, dim=0).numpy()
     y_pred = torch.cat(y_pred, dim=0).numpy()
-
+    
+    if eval_metric != 'rocauc':
+        y_prob = torch.cat(y_prob, dim=0).numpy()
+    if eval_metric == 'rocauc':
+        y_pred_label = torch.cat(y_pred_label, dim=0).numpy()
+    
     if eval_metric == 'mat':
-        res_metric = matthews_corrcoef(y_true, y_pred)
+        res_metric = matthews_corrcoef(y_true, y_pred) # mcc
     else:
         input_dict = {"y_true": y_true, "y_pred": y_pred}
-        res_metric = evaluator.eval(input_dict)[eval_metric]
+        res_metric = evaluator.eval(input_dict)[eval_metric] # acc auc 
+        
+    if eval_metric == 'acc':
+        accuracy = res_metric
+    elif eval_metric == 'rocauc':
+        accuracy = accuracy_score(y_true, y_pred_label)
+    else:
+        accuracy = accuracy_score(y_true, y_pred)
+    
+    if eval_metric == 'rocauc':
+        auroc = res_metric
+    else:
+        auroc = roc_auc_score(y_true, y_prob)
+        
+    if eval_metric != 'rocauc':
+        precision = precision_score(y_true, y_pred)
+        recall = recall_score(y_true, y_pred)
+        f1 = f1_score(y_true, y_pred)
+    else:
+        precision = precision_score(y_true, y_pred_label)
+        recall = recall_score(y_true, y_pred_label)
+        f1 = f1_score(y_true, y_pred_label)
+        
+    metrics = {'accuracy': accuracy, 'precision': precision, 'recall': recall, 'f1': f1, 'auroc': auroc}
 
     if save_pred:
         return res_metric, y_pred
     else:
-        return res_metric
+        return res_metric, metrics
