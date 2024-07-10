@@ -71,7 +71,7 @@ def eval_model(model, device, loader, evaluator, env_model=None, eval_metric='ac
     y_pred = []
     if eval_metric == 'rocauc':
         y_pred_label = []
-    elif eval_mteric == 'mat':
+    elif eval_metric == 'mat':
         y_prob = []
 
     for batch in loader:
