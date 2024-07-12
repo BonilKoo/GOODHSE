@@ -161,6 +161,8 @@ def eval_model(model, device, loader, evaluator, env_model=None, eval_metric='ac
         f1 = f1_score(y_true, y_pred_label)
         
     metrics = {'accuracy': accuracy, 'precision': precision, 'recall': recall, 'f1': f1, 'auroc': auroc}
+    if eval_metric == 'mat':
+        metrics['mat'] = res_metric
 
     if save_pred:
         return res_metric, y_pred
